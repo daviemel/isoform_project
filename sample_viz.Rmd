@@ -3,9 +3,9 @@ title: 'Isoform Project: Visualizations'
 output: html_document
 ---
 
-# 1. Set Up
+# **1.** Set Up
 
-## 1.1. Load Packages
+## **1.1.** Load Packages
 ```{r message=FALSE, warning=FALSE}
 library(Gviz)
 library(rtracklayer)
@@ -21,267 +21,132 @@ library(ggforce)
 library(tidyverse)
 ```
 
-## 1.2. Choose RefSeq or Ensembl
-* RefSeq = 1
-* Ensembl = 2
-
-```{r}
-method <- 1
-```
-
-## 1.3. Load BAMs
-
+## **1.2.** Create BAM Variables
 ```{r}
 #RefSeq -------------------------------------------------------------------------
 
-if(method==1){
-  
-  #Testing
-  WT1 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/RefSeq_tests/RefseqForAIBSSumOverlapsScript_RamseyTestFile/WT1Aligned.sortedByCoord.out.bam")
+
+#Testing (Bulk)
+WT1 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/RefSeq_tests/RefseqForAIBSSumOverlapsScript_RamseyTestFile/WT1Aligned.sortedByCoord.out.bam")
 
 
-  #Pvalb
-  ls15581 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/LS-15581_S09_E1-50_R1Aligned.sortedByCoord.out.bam")
+#Pvalb
+ls15581 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/LS-15581_S09_E1-50_R1Aligned.sortedByCoord.out.bam")
 
-  smdaifd <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/SM-DAIFD_S51_E1-50_R1Aligned.sortedByCoord.out.bam")
+smdaifd <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/SM-DAIFD_S51_E1-50_R1Aligned.sortedByCoord.out.bam")
 
-  smd9cxp <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/SM-D9CXP_S75_E1-50_R1Aligned.sortedByCoord.out.bam")
+smd9cxp <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/SM-D9CXP_S75_E1-50_R1Aligned.sortedByCoord.out.bam")
 
-  ls15542 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/LS-15542_S58_E1-50_R1Aligned.sortedByCoord.out.bam")
+ls15542 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/LS-15542_S58_E1-50_R1Aligned.sortedByCoord.out.bam")
 
-  ls15074 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/LS-15074_S67_E1-50_R1Aligned.sortedByCoord.out.bam")
+ls15074 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/LS-15074_S67_E1-50_R1Aligned.sortedByCoord.out.bam")
 
 
-  #L2/3
-  ls15380 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/LS-15380_S42_E1-50_R1Aligned.sortedByCoord.out.bam")
+#L2/3
+ls15380 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/LS-15380_S42_E1-50_R1Aligned.sortedByCoord.out.bam")
 
-  smd9e61 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/SM-D9E61_S93_E1-50_R1Aligned.sortedByCoord.out.bam")
+smd9e61 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/SM-D9E61_S93_E1-50_R1Aligned.sortedByCoord.out.bam")
 
-  smd9eqh <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/SM-D9EQH_S77_E1-50_R1Aligned.sortedByCoord.out.bam")
+smd9eqh <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/SM-D9EQH_S77_E1-50_R1Aligned.sortedByCoord.out.bam")
 
-  ls15379 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/LS-15379_S07_E1-50_R1Aligned.sortedByCoord.out.bam")
+ls15379 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/LS-15379_S07_E1-50_R1Aligned.sortedByCoord.out.bam")
 
-  ls15060 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/LS-15060_S30_E1-50_R1Aligned.sortedByCoord.out.bam")
+ls15060 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Pilot_PVALBvsL23_inVisp/Pilot_coord_bams/STAR_results/coord_bams/LS-15060_S30_E1-50_R1Aligned.sortedByCoord.out.bam")
 
-}
 
 #Ensembl -------------------------------------------------------------------------
 
-if(method==2){
-  
-  ls15581<-("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Ensembl_Pilot/LS-15581_S09_E1-50_Aligned.sortedByCoord.out.bam")
+ensembl_ls15379 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Ensembl_untarred_outputs/Aligned.sortedByCoord.out.bam")
 
-  smdaifd <-("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Ensembl_Pilot/SM-DAIFD_S51_E1-50_Aligned.sortedByCoord.out.bam")
-
-  ensembl_ls15379 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Ensembl_untarred_outputs/Aligned.sortedByCoord.out.bam")
-
-}
 ```
 
-### 1.3.1. Create Index for BAM
+### **1.2.1.** Create Index for BAMs
 **Only if no .bai file for BAM has been created yet**
 ```{r}
 #indexBam()
 ```
 
-## 1.4. Load Reference Genome
+## **1.3.** Create Reference Genome Variables
 ```{r}
-#RefSeq -------------------------------------------------------------------------
-
-if(method==1){
+refseq_ref <- ("/external/rprshnas01/netdata_kcni/stlab/Genomic_references/AIBS/Mouse/Refseq_GRCm38.p3/Raw/GCF_000001635.23_GRCm38.p3_genomic.gff")
   
-  refseq_ref <- ("/external/rprshnas01/netdata_kcni/stlab/Genomic_references/AIBS/Mouse/Refseq_GRCm38.p3/Raw/GCF_000001635.23_GRCm38.p3_genomic.gff")
-
-}
-
-#Ensembl -------------------------------------------------------------------------
-
-if(method==2){
-  
-  ensembl_ref <- ("/external/rprshnas01/netdata_kcni/stlab/Genomic_references/Ensembl/Mouse/Release_104/Raw/Mus_musculus.GRCm39.104.gtf")
-  
-}
+ensembl_ref <- ("/external/rprshnas01/netdata_kcni/stlab/Genomic_references/Ensembl/Mouse/Release_104/Raw/Mus_musculus.GRCm39.104.gtf")
 ```
 
-## 1.5. Create TxDb
-
-```{r  message=FALSE, warning=FALSE}
-#RefSeq -------------------------------------------------------------------------
-
-if(method==1){
-
-  refseqTxDb <- makeTxDbFromGFF(refseq_ref)
-
-}
-
-#Ensembl -------------------------------------------------------------------------
-
-if(method==2){
-  
-  ensemblTxDb <- makeTxDbFromGFF(ensembl_ref)
-  
-}
-```
-
-## 1.6. Chromosome Identifier
+### **1.3.1** Create TxDb Object
+* These take a while, so you can just run the one you need
 
 ```{r}
-#RefSeq -------------------------------------------------------------------------
-
-if(method==1){
-  
-  chrID <- "NC_000082.6"  #Chromosome 16
-
-}
-
-#Ensembl -------------------------------------------------------------------------
-
-if(method==2){
-  
-  chrID <- "16"  #Chromosome 16
-  
-}
+refseqTxDb <- makeTxDbFromGFF(refseq_ref)
 ```
 
-##1.7. Gene Coordinates
-* Coordinates below are for zdhhc8.
-
 ```{r}
-#RefSeq -------------------------------------------------------------------------
-
-if(method==1){
-  
-  gene_start <- 18220748
-  gene_stop <- 18235153
-  
-}
-
-#Ensembl -------------------------------------------------------------------------
-
-if(method==2){
-  
-  gene_start <- 18038617
-  gene_stop <- 18053000
-  
-}
+#ensemblTxDb <- makeTxDbFromGFF(ensembl_ref)
 ```
 
-## 1.8. Get list of transcripts for gene of interest
+## **1.4.** Set Up Figure
+The function below will create a coverage + sashimi plot for the chosen BAM aligned to gene isoform models for the chosen reference, additionally showing coordinate positions on the x-axis
 
-### 1.8.1. Create dataframe of all transcripts in genome reference
+**Parameters:**
 
-```{r}
-#RefSeq -------------------------------------------------------------------------
-
-if(method==1){
-
-  refseqTxDb_df <- data.frame(transcripts(refseqTxDb))
-  
-}
-
-#Ensembl -------------------------------------------------------------------------
-
-if(method==2){
-  
-  ensemblTxDb_df <- data.frame(transcripts(ensemblTxDb))
-  
-}
-```
-
-### 1.8.2. Create list of transcripts located within gene coordinates
+* txdb: a TxDb object, can be either **refseqTxDb** OR **ensemblTxDb**
+* bam: as a variable (should be defined in section 1.2 above), e.g. ls15581
+* chrID: as a character representing chromosome for selected reference, e.g. "NC_000082.6" for RefSeq OR "16" for Ensembl
+* coords: as a vector where the 1st value is the start coordinate and the 2nd is the end, e.g. c(0, 100)
 
 ```{r}
-#RefSeq -------------------------------------------------------------------------
-
-if(method==1){
+makefigure <- function(txdb, bam, chrID, coords) {
   
-  gene_df <- refseqTxDb_df %>% 
+  # Name the coordinate parameters
+  gene_start <- coords[1]
+  gene_stop <- coords[2]
+  
+  # Extract list of transcripts
+  gene_tx <- data.frame(transcripts(txdb)) %>% 
     filter(seqnames==chrID) %>% 
     filter((start>=gene_start) & (end<=gene_stop)) %>% 
-    dplyr::select(tx_name)
-
-  gene_tx <- list(gene_df$tx_name)
-  gene_tx <- gene_tx[[1]]
+    dplyr::select(tx_name) %>% 
+    list(.$tx_name) %>% 
+    .[[2]]
   
-}
-
-#Ensembl -------------------------------------------------------------------------
-
-if(method==2){
+  # Create genome axis track
+  genomeAxis <- GenomeAxisTrack(name="MyAxis") 
   
-  gene_df <- ensemblTxDb_df %>% 
-    filter(seqnames==chrID) %>% 
-    filter((start>=gene_start) & (end<=gene_stop)) %>% 
-    dplyr::select(tx_name)
-
-  gene_tx <- list(gene_df$tx_name)
-  gene_tx <- gene_tx[[1]]
+  # Create plot for coverage and sashimi
+  peakReads <- AlignmentsTrack(bam)
   
-}
-```
-
-# 2. Visualization
-
-## 2.1. Genome Axis Track
-* This will be used as an x-axis to indicate genomic coordinates for other plots.
-
-```{r}
-genomeAxis <- GenomeAxisTrack(name="MyAxis") 
-```
-
-## 2.2. Gene Models
-* This will be used to display the different gene isoforms aligned to the gene of interest.
-
-```{r message=FALSE, warning=FALSE}
-#RefSeq -------------------------------------------------------------------------
-
-if(method==1){
-  
-  gr <- exonsBy(refseqTxDb, by = "tx", use.names=TRUE)[gene_tx]
+  # Create gene models
+  gr <- exonsBy(txdb, by = "tx", use.names=TRUE)[gene_tx]
   gr <- unlist(gr)
   elementMetadata(gr)$transcript <- names(gr)
   gene_models <- Gviz::GeneRegionTrack(gr, showId=TRUE, options(ucscChromosomeNames=FALSE),
                                        transcriptAnnotation="transcript")
-
-}
-
-#Ensembl -------------------------------------------------------------------------
-
-if(method==2){
   
-  gr <- exonsBy(ensemblTxDb, by = "tx", use.names=TRUE)[gene_tx]
-  gr <- unlist(gr)
-  elementMetadata(gr)$transcript <- names(gr)
-  gene_models <- Gviz::GeneRegionTrack(gr, showId=TRUE, options(ucscChromosomeNames=FALSE),
-                                       transcriptAnnotation="transcript")
+  # Put the figure together
+  options(ucscChromosomeNames=FALSE)
+  fig <- plotTracks(c(peakReads, gene_models, genomeAxis),
+             showId=TRUE,
+             transcriptAnnotation="transcript",
+             chromosome=chrID,
+             sizes=c(3,2,1),
+             from=gene_start,
+             to=gene_stop,
+             extend.left=3500,
+             fill="lightsteelblue", col.sashimi="lightsteelblue4",
+             title.width=1.5,
+             type=c('coverage', 'sashimi'))
 
+  return(fig)
 }
 ```
 
-## 2.3. Alignments Track for BAM of interest
-* This will be used for the coverage + sashimi plot.
+# **2.** Visualization
 
-```{r}
-peakReads <- AlignmentsTrack(smd9eqh) #this is one of the BAM files loaded in beginning 
-```
+## **2.1** Create Figure
+* May optionally save to .png
 
-## 2.4. Create Plot
-* Includes coverage, sashimi, and transcript models
-* May optionally save image to .png
-
-```{r}
-#png(filename="ls15060.png")
-options(ucscChromosomeNames=FALSE)
-plotTracks(c(peakReads, gene_models, genomeAxis),
-           showId=TRUE,
-           transcriptAnnotation="transcript",
-           chromosome=chrID,
-           sizes=c(3,2,1),
-           from=gene_start,
-           to=gene_stop,
-           extend.left=3500,
-           fill="lightsteelblue", col.sashimi="lightsteelblue4",
-           title.width=1.5,
-           type=c('coverage', 'sashimi'))
+```{r message=FALSE, warning=FALSE, results=FALSE}
+#png(filename="ls15581.png")
+makefigure(refseqTxDb, ls15581, "NC_000082.6", c(18220748,18235153))
 #dev.off()
 ```
