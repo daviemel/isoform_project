@@ -25,6 +25,7 @@ library(tidyverse)
 
 ## Randomly Sample from Cell Subclasses
 The function below will take a directory of downloaded FASTQ files (e.g. scRNAseq samples from VISp region) and create a CSV containing a random sampling of 100 file names from a certain subclass (e.g. Pvalb)
+
 * The CSV file created should be used to specify which FASTQ files to align in STAR script (which will create BAM files)
 
 **Parameters:**
@@ -74,7 +75,7 @@ makerandomsample(metadatacsv="/external/rprshnas01/netdata_kcni/stlab/Public/AIB
 ```
 
 ## Create Subclass-Level BAMs
-* Create and index merged BAM for each subclass
+The function below will create and index a merged BAM for a specific subclass
 
 **Parameters:**
 
