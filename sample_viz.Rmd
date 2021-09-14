@@ -21,6 +21,7 @@ library(Rsamtools)
 library(GenomicAlignments)
 library(VariantAnnotation)
 library(tidyverse)
+library(Rsubread)
 ```
 
 ## Randomly Sample from Cell Subclasses
@@ -153,7 +154,7 @@ The function below will create a coverage + sashimi plot for two BAMs aligned to
 * **coords:** as a vector, where the 1st value is the start coordinate and the 2nd is the end, e.g. c(0, 100)—note that unit is in bases, so 18,050kb becomes 18050000
 
 ```{r}
-makefigure <- function(txdb, bam1, bam2, chrID, coords) {
+makefigure <- function(txdb, bam1, bam2, chrID, coords, bam1title=deparse(substitute(bam1)), bam2title=deparse(substitute(bam2))) {
   
   # Extract list of transcripts
   gene_tx <- data.frame(transcripts(txdb)) %>% 
@@ -171,10 +172,10 @@ makefigure <- function(txdb, bam1, bam2, chrID, coords) {
   bf_bam2 <- BamFile(bam2, asMates=TRUE)
   
   # Create plot for coverage and sashimi
-  bam1_peakReads <- AlignmentsTrack(bam1, name=deparse(substitute(bam1)), cex=2, background.title="white",
+  bam1_peakReads <- AlignmentsTrack(bam1, name=bam1title, cex=2, background.title="white",
                                     sashimiScore=(1/1200)*(countBam(bf_bam1)$records),
                                     col.axis="lightsteelblue4", col.title="lightsteelblue4")
-  bam2_peakReads <- AlignmentsTrack(bam2, name=deparse(substitute(bam2)), cex=2, background.title="white",
+  bam2_peakReads <- AlignmentsTrack(bam2, name=bam2title, cex=2, background.title="white",
                                     sashimiScore=(1/1200)*(countBam(bf_bam2)$records),
                                     col.axis="lightsteelblue4", col.title="lightsteelblue4")
   
@@ -215,12 +216,11 @@ pvalb <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/
 l23 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/RefSeq_random100_merged_l23.bam")
 
 #png(filename="pvalbvsl23.png")
-makefigure(refseqTxDb_GRCm39, pvalb, l23, "NC_000082.7", c(18038612,18056471))
+makefigure(refseqTxDb_GRCm39, pvalb, l23, "NC_000082.7", c(18038612,18056471), bam1title="Pvalb", bam2title="L2/3 IT CTX-1")
 #dev.off()
 ```
 
-# Quantification: summarizeOverlaps (still testing)
-Next: normalize to RPKM? 
+# Quantification (still testing)
 
 ## See exon boundary coordinates
 ```{r eval = FALSE}
@@ -232,7 +232,7 @@ gene_tx <- data.frame(transcripts(refseqTxDb_GRCm39)) %>%
   .[[2]]
 gr <- exonsBy(refseqTxDb_GRCm39, by = "tx", use.names=TRUE)[gene_tx]
 data.frame(unlist(gr)) %>% 
-  select(start, end, exon_name)
+  select(start, end, exon_name) 
 ```
 
 ## Define transcript-specific ranges
@@ -240,25 +240,103 @@ data.frame(unlist(gr)) %>%
 NM_172151.5_specific <- GRanges("NC_000082.7", IRanges(18039568, 18041241))
 XM_036159976.1_or_XM_006522224.5 <- GRanges("NC_000082.7", IRanges(18053017, 18056471))
 XM_036159977.1_or_XM_006522224.5 <- GRanges("NC_000082.7", IRanges(18045219, 18045310))
-rng <- XM_036159977.1_or_XM_006522224.5
+rng <- NM_172151.5_specific
 ```
 
-## Calculate normalized reads
+## summarizeOverlaps: calculate normalized reads
+
+### As a percentage of reads for whole gene
 ```{r eval = FALSE}
 #Pvalb cells
 bf_pvalb <- BamFile(pvalb, asMates=TRUE)
 
 counts_pvalb <- data.frame(union=assays(summarizeOverlaps(rng, bf_pvalb, singleEnd=FALSE, fragments=TRUE))$counts)
-colSums(counts_pvalb)
-p_pvalb <- (rowSums(counts_pvalb))/(countBam(bf_pvalb)$records)
+colSums(counts_pvalb) # raw number of reads in region
+p_pvalb <- 100*(rowSums(counts_pvalb))/(countBam(bf_pvalb)$records) # reads as proportion of total reads in gene
 
 #L2/3
 bf_l23 <- BamFile(l23, asMates=TRUE)
 
 counts_l23 <- data.frame(union=assays(summarizeOverlaps(rng, bf_l23, singleEnd=FALSE, fragments=TRUE))$counts)
 colSums(counts_l23)
-p_l23 <- (rowSums(counts_l23))/(countBam(bf_l23)$records)
+p_l23 <- 100*(rowSums(counts_l23))/(countBam(bf_l23)$records)
 
 colSums(data.frame(p_pvalb))
 colSums(data.frame(p_l23))
+```
+
+### Region Ratios (short vs long-minus-short)
+```{r}
+long <- GRanges("NC_000082.7", IRanges(18039568, 18041241))
+short <- GRanges("NC_000082.7", IRanges(18038612, 18039568))
+
+long_pvalb <- data.frame(union=assays(summarizeOverlaps(long, bf_pvalb, singleEnd=FALSE, fragments=TRUE))$counts)
+short_pvalb <- data.frame(union=assays(summarizeOverlaps(short, bf_pvalb, singleEnd=FALSE, fragments=TRUE))$counts)
+
+long_l23 <- data.frame(union=assays(summarizeOverlaps(long, bf_l23, singleEnd=FALSE, fragments=TRUE))$counts)
+short_l23 <- data.frame(union=assays(summarizeOverlaps(short, bf_l23, singleEnd=FALSE, fragments=TRUE))$counts)
+
+ratio_pvalb <- (rowSums(long_pvalb))/(rowSums(short_pvalb))
+ratio_l23 <- (rowSums(long_l23))/(rowSums(short_l23))
+
+colSums(data.frame(ratio_pvalb))
+colSums(data.frame(ratio_l23))
+```
+### As a percentage of reads in long final exon region
+```{r}
+full <- GRanges("NC_000082.7", IRanges(18038617, 18041241))
+full_minus_short <- GRanges("NC_000082.7", IRanges(18039568, 18041241))
+
+full_pvalb <- data.frame(union=assays(summarizeOverlaps(full, bf_pvalb, singleEnd=FALSE, fragments=TRUE))$counts)
+full_minus_short_pvalb <- data.frame(union=assays(summarizeOverlaps(full_minus_short, bf_pvalb, singleEnd=FALSE, fragments=TRUE))$counts)
+
+full_l23 <- data.frame(union=assays(summarizeOverlaps(full, bf_l23, singleEnd=FALSE, fragments=TRUE))$counts)
+full_minus_short_l23 <- data.frame(union=assays(summarizeOverlaps(full_minus_short, bf_l23, singleEnd=FALSE, fragments=TRUE))$counts)
+
+p_pvalb <- 100*(rowSums(full_minus_short_pvalb))/(rowSums(full_pvalb))
+p_l23 <- 100*(rowSums(full_minus_short_l23))/(rowSums(full_l23))
+
+colSums(data.frame(p_pvalb))
+colSums(data.frame(p_l23))
+```
+## summarizeJunctions
+18041241-18042082 (long final exon) 
+* Pvalb = 50
+* L23: 16
+
+18039568-18042082 (short final exon) 
+* Pvalb = 8
+* L23: 117
+
+```{r}
+galign_pvalb <- readGAlignmentPairs(pvalb,index="/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/RefSeq_random100_merged_pvalb.bam", strandMode=1)
+galign_l23 <- readGAlignmentPairs(l23, index="/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/RefSeq_random100_merged_l23.bam", strandMode=1)
+
+junctions_pvalb <- summarizeJunctions(galign_pvalb)
+junction_df_pvalb <- data.frame(c(as.data.frame(junctions_pvalb@ranges), as.data.frame(junctions_pvalb$score)))
+
+junctions_l23 <- summarizeJunctions(galign_l23)
+junction_df_l23 <- data.frame(c(as.data.frame(junctions_l23@ranges), as.data.frame(junctions_l23$score)))
+
+junction_df_l23 %>% filter(end==18042081)
+junction_df_pvalb %>% filter(end==18042081)
+```
+
+## featureCounts
+```{r}
+fc_pvalb <- featureCounts(files=pvalb, 
+              annot.ext=refseq_ref_GRCm39,
+              isGTFAnnotationFile = TRUE,
+              GTF.attrType = "ID",
+              isPairedEnd = TRUE,
+              juncCounts = TRUE,
+              genome = "/external/rprshnas01/netdata_kcni/stlab/Genomic_references/Refseq/Mouse/Refseq_GRCm39/Raw/GCF_000001635.27_GRCm39_genomic.fna")
+
+fc_l23 <- featureCounts(files=l23, 
+              annot.ext=refseq_ref_GRCm39,
+              isGTFAnnotationFile = TRUE,
+              GTF.attrType = "ID",
+              isPairedEnd = TRUE,
+              juncCounts = TRUE,
+              genome = "/external/rprshnas01/netdata_kcni/stlab/Genomic_references/Refseq/Mouse/Refseq_GRCm39/Raw/GCF_000001635.27_GRCm39_genomic.fna")
 ```
