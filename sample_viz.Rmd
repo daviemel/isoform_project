@@ -37,6 +37,23 @@ The function below will take a directory of downloaded FASTQ files (e.g. scRNAse
 * **subclass:** as a character, subclass name (defined in metadatacsv)
 * **region:** as a character, region name (defined in metadatacsv)
 
+### Examine Metadata
+```{r}
+## Prepare metadata
+metadatacsv <- ("/external/rprshnas01/netdata_kcni/stlab/Public/AIBS_scRNAseq_2019/mouse/2020_10_24/metadata.csv")
+metadata <- read_csv(metadatacsv)
+
+## Check column names
+colnames(metadata)
+
+# See subclasses available in each region (only those with sufficient number of cells to sample)
+metadata %>% filter(region_label!="HIP") %>% group_by(region_label, class_label, subclass_label) %>% tally() %>% filter(n>240)
+
+# See list of all available regions
+metadata$region_label %>% unique(.)
+```
+
+### Sample One (1) Subclass
 ```{r}
 makerandomsample <- function(metadatacsv, filedir, subclass, region, outputcsv) {
   # Get metadata for all files
@@ -54,7 +71,7 @@ makerandomsample <- function(metadatacsv, filedir, subclass, region, outputcsv) 
     filter(region_label == region) %>% 
     filter(exp_component_name %in% downloaded_files) %>% 
     select(exp_component_name) %>% 
-    sample_n(100)
+    sample_n(120)
   
   # Save the random sample to a CSV
   metadata_sample %>% 
@@ -62,17 +79,108 @@ makerandomsample <- function(metadatacsv, filedir, subclass, region, outputcsv) 
 }
 ```
 
-### Example Usage
-```{r eval = FALSE}
-makerandomsample(metadatacsv="/external/rprshnas01/netdata_kcni/stlab/Public/AIBS_scRNAseq_2019/mouse/2020_10_24/metadata.csv",
-                 filedir="/external/rprshnas01/netdata_kcni/stlab/Public/AIBS_scRNAseq_2019/mouse/Raw/VISp",
-                 subclass="L2/3 IT CTX-1", region="VISp", 
-                 outputcsv="/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Random100_PVALBvsL23_inVisp/l23_sample.csv")
+### Sample Multiple Subclasses
 
-makerandomsample(metadatacsv="/external/rprshnas01/netdata_kcni/stlab/Public/AIBS_scRNAseq_2019/mouse/2020_10_24/metadata.csv",
-                 filedir="/external/rprshnas01/netdata_kcni/stlab/Public/AIBS_scRNAseq_2019/mouse/Raw/VISp",
-                 subclass="Pvalb", region="VISp", 
-                 outputcsv="/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Random100_PVALBvsL23_inVisp/pvalb_sample.csv")
+**Additional Parameters:**
+
+* **subclassregion:** dataframe with columns for region and subclass labels (for function: fullrandomsamples)
+* **subclasses:** character vector with subclasses to be sampled (for function: makerandomsamples)
+* **outputpath:** directory where .csv files will be created
+
+```{r eval = FALSE}
+# Randomly sample from each subclass in one region
+## Get subclass list
+subclasses <- metadata %>% 
+  filter(region_label=="VISp") %>% 
+  group_by(subclass_label) %>% 
+  tally() %>% 
+  filter(n>240) %>% 
+  .$subclass_label %>% 
+  str_replace_all(.," ", "_")
+
+makerandomsamples <- function(metadatacsv, filedir, subclasses, region, outputpath){
+  for (subclass in subclasses) {
+    makerandomsample(metadatacsv=metadatacsv,
+                     filedir=filedir,
+                     subclass=subclass, region=region,
+                     outputcsv=paste0(outputpath, "/", subclass, "_sample.csv"))
+  }
+}
+
+# Randomly sample from each subclass in each region
+## Get subclass + region dataframe
+subclassregion <- metadata %>% 
+  filter(region_label!="HIP" & region_label!="VISp") %>% 
+  group_by(region_label, subclass_label) %>% 
+  tally() %>% 
+  filter(n>150) %>% 
+  select(region_label, subclass_label) %>% 
+  mutate(subclass_label=str_replace_all(subclass_label, " ", "_"))
+
+fullrandomsamples <- function(metadatacsv, filedir, subclassregion, outputpath) {
+  for (region in subclassregion$region_label) {
+    dir.create(file.path(dirname(outputpath), region))
+    outputdir <- paste0(outputpath, "/", region)
+    dir.create(file.path(dirname(outputdir), "samples"))
+    sampledir <- paste0(outputdir, "/samples")
+    for (subclass in subclassregion$subclass_label) {
+      makerandomsample(metadatacsv=metadatacsv,
+                       filedir=paste0(filedir,"/",region),
+                       subclass=subclass, region=region,
+                       outputcsv=paste0(sampledir, "/", subclass, "_sample.csv"))
+    }
+  }
+}
+```
+
+### Example Usage
+```{r}
+random100dir <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Random100")
+fastqfiles <- ("/external/rprshnas01/netdata_kcni/stlab/Public/AIBS_scRNAseq_2019/mouse/Raw")
+
+# Create sample for L2/3 in VISp
+makerandomsample(metadatacsv=metadatacsv,
+                 filedir=paste0(fastqfiles, "/VISp"),
+                 subclass="L2/3 IT CTX-1", region="VISp", 
+                 outputcsv=paste0(random100dir, "/VISp/samples/l23_sample.csv"))
+
+
+# Create samples for all subclasses in VISp
+makerandomsamples(metadatacsv=metadatacsv,
+                  filedir=paste0(fastqfiles, "/VISp"),
+                  subclasses=subclasses, region="VISp", 
+                  outputpath=paste0(random100dir, "/VISp/samples"))
+
+# Create samples for all subclasses in all regions
+fullrandomsamples(metadatacsv=metadatacsv,
+                  filedir=fastqfiles,
+                  subclassregion=subclassregion,
+                  outputpath=random100dir)
+```
+
+## Align Sampled Cells
+**TODO: MAKE VERSION THAT WORKS FOR ALL REGIONS AT ONCE**
+**TODO: UPDATE SO THAT ONLY FILES WHICH ARE SUCCESSFULLY UNTARRED GO INTO SCRIPTS**
+
+### Create Alignment Scripts
+```{bash}
+subclasses=('l5it' 'l5np' 'l6ct' 'l6b' 'astro')
+for subclass in "${subclasses[@]}"; do
+  echo "Subclass: $subclass"
+  cd /external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Random100/VISp
+  mkdir "$subclass"_outputs
+  /external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Random100/STAR_align.sh /external/rprshnas01/netdata_kcni/stlab/Public/AIBS_scRNAseq_2019/mouse/Raw/VISp /external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Random100/VISp/${subclass}_outputs/ /external/rprshnas01/netdata_kcni/stlab/Genomic_references/Refseq/Mouse/Refseq_GRCm39/USE_THIS_genomeDir_gff /external/rprshnas01/netdata_kcni/stlab/Genomic_references/Refseq/Mouse/Refseq_GRCm39/Raw/GCF_000001635.27_GRCm39_genomic.gff /external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Random100/VISp/samples/${subclass}_sample.csv
+done
+```
+
+### Run Alignment Scripts
+```{bash}
+subclasses=('l5it' 'l5np' 'l6ct' 'l6b' 'astro')
+for subclass in "${subclasses[@]}"; do
+  echo "Subclass: $subclass"
+  cd /external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Random100/VISp/${subclass}_outputs
+  qbatch -w 08:00:00 --ppj 12 -c 10 --mem 60G STARParaCom.txt
+done
 ```
 
 ## Create Subclass-Level BAMs
@@ -84,39 +192,82 @@ The function below will create and index a merged BAM for a specific subclass
 * **outputname:** the directory and desired name for new merged BAM, e.g. "../merged.bam" (*must end with .bam*)
 * **chrID:** as a character, representing chromosome for selected reference, e.g. "NC_000082.7" for RefSeq OR "16" for Ensembl
 * **coords:** as a vector, where the 1st value is the start coordinate and the 2nd is the end, e.g. c(0, 100)—note that unit is in bases, so 18,050kb becomes 18050000
+* **index:** TRUE by default, change to FALSE if each BAM to be merged already has associated .bai (index file)
 
+### For One (1) Subclass in One (1) Region
 ```{r}
-makesubclassBAM <- function(inputdir, outputname, chrID, coords) {
+makesubclassBAM <- function(inputdir, outputname, chrID, coords, index=TRUE) {
   
   # Create list of file paths for the BAMs
   bamfiles <- list.files(inputdir)
   bampaths <- paste0(inputdir, "/", bamfiles)
   
-  # Index each BAM file (removing any previously created index files beforehand)
+  # Ignoring any previously created index files
   bampaths_nobai <- str_subset(bampaths, ".bai", negate=TRUE)
-  for (file in bampaths_nobai) {
-    indexBam(file)
+  set.seed(12345) # For reproducibility
+  bampaths_nobai <- bampaths_nobai %>% sample_n(100)
+  
+  # If index=TRUE, index each BAM file
+  if (index) {
+    for (file in bampaths_nobai) {
+      indexBam(file)
+    }
   }
   
   # Merge all BAMs into one which only contains gene of interest
-  merged <- mergeBam(files=bampaths, destination=outputdir, 
-                     overwrite=TRUE, region = GRanges(chrID, IRanges(coords[1], coords[2])), indexDestination=TRUE)
-  
-  return(outputname)
+  mergeBam(files=bampaths_nobai, destination=outputname, 
+           overwrite=TRUE, region = GRanges(chrID, IRanges(coords[1], coords[2])), indexDestination=TRUE)
+}
+```
+
+### For All Subclasses in All Regions
+```{r}
+makesubclassBAMs <- function(inputdir, outputdir, subclassregion, chrID, coords, index=TRUE) {
+  for (region in subclassregion$region_label) {
+    dir.create(file.path(dirname(outputdir), region))
+    outputdir <- paste0(outputdir, "/", region)
+    dir.create(file.path(dirname(outputdir), "merged_bams"))
+    mergeddir <- paste0(outputdir, "/merged_bams")
+    for (subclass in subclassregion$subclass_label) {
+      outputname <- paste0(mergeddir, "/", "RefSeq_random100_merged_", subclass, ".bam")
+      inputdir <- #TODO
+      makesubclassBAM(inputdir, outputname, chrID, coords, index)
+    }
+  }
 }
 ```
 
 ### Example Usage
-```{r eval = FALSE}
-l23 <- makesubclassBAM(
-  inputdir="/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Random100_PVALBvsL23_inVisp/l23_outputs/STAR_results/coord_bams", 
-  outputname="/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/RefSeq_random100_merged_l23.bam", chrID="NC_000082.7",
-  coords=c(18038612,18056471))
+```{r}
+# For one subclass in one region
+makesubclassBAM(
+  inputdir=paste0(random100dir, "/VISp/l23_outputs/STAR_results/coord_bams"),
+  outputname=paste0(random100dir, "/VISp/merged_bams/RefSeq_random100_merged_l23.bam"), chrID="NC_000082.7",
+  coords=c(18038612,18056471), index=FALSE)
 
-pvalb <- makesubclassBAM(
-  inputdir="/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Random100_PVALBvsL23_inVisp/pvalb_outputs/STAR_results/coord_bams", 
-  outputname="/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/RefSeq_random100_merged_pvalb.bam", chrID="NC_000082.7",
-  coords=c(18038612,18056471))
+## Assign names to merged BAMs
+vispsubclasses <- c("l23", "pvalb", "lamp5", "sst", "vip", "l45", "l5pt", "l6it")
+
+for (subclass in vispsubclasses){
+  assign(subclass, paste0(random100dir, "/VISp/merged_bams/RefSeq_random100_merged_", subclass, ".bam"))
+}
+
+# For all subclasses in all regions
+makesubclassBAMs(inputdir=, #TODO
+                 outputdir=random100dir)
+
+## Assign names to merged BAMs
+```
+
+## Create Class-Level BAMs (TODO)
+```{r}
+mergeBam(files=c(l23, l45, l5pt, l6it), destination="/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/RefSeq_random100_merged_exc.bam", overwrite=TRUE, region=GRanges("NC_000082.7", IRanges(18038612,18056471)), indexDestination=TRUE)
+
+exc <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Random100/VISp/merged_bams/RefSeq_random100_merged_exc.bam")
+
+mergeBam(files=c(pvalb, lamp5, sst, vip), destination="/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/RefSeq_random100_merged_inh.bam", overwrite=TRUE, region=GRanges("NC_000082.7", IRanges(18038612,18056471)), indexDestination=TRUE)
+
+inh <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/Random100/VISp/merged_bams/RefSeq_random100_merged_inh.bam")
 ```
 
 ## Create Reference Genome Variables
@@ -133,13 +284,9 @@ ensembl_ref_GRCm39 <- ("/external/rprshnas01/netdata_kcni/stlab/Genomic_referenc
 
 ```{r results=FALSE, message=FALSE, warning=FALSE}
 refseqTxDb_GRCm39 <- makeTxDbFromGFF(refseq_ref_GRCm39)
-```
 
-```{r}
 #refseqTxDb_GRCm38 <- makeTxDbFromGFF(refseq_ref_GRCm38)
-```
 
-```{r}
 #ensemblTxDb <- makeTxDbFromGFF(ensembl_ref)
 ```
 
@@ -149,35 +296,51 @@ The function below will create a coverage + sashimi plot for two BAMs aligned to
 **Parameters:**
 
 * **txdb:** a TxDb object, can be *refseqTxDb_GRCm39*, *refseqTxDb_GRCm38*, OR *ensemblTxDb*
-* **bam1/bam2:** as a path to the BAM file (should be defined in section 1.3 above, e.g. pvalb)
+* **bam1/bam2/...:** as a path to the BAM file (should be defined above, e.g. pvalb)
 * **chrID:** as a character, representing chromosome for selected reference, e.g. "NC_000082.6" for RefSeq OR "16" for Ensembl
 * **coords:** as a vector, where the 1st value is the start coordinate and the 2nd is the end, e.g. c(0, 100)—note that unit is in bases, so 18,050kb becomes 18050000
+* **bam1title, etc.:** optional, a character specifying y-axis title for each coverage/junction plot
 
 ```{r}
-makefigure <- function(txdb, bam1, bam2, chrID, coords, bam1title=deparse(substitute(bam1)), bam2title=deparse(substitute(bam2))) {
+makefigure <- function(txdb, bam1, bam2, bam3=NULL, bam4=NULL, chrID, coords, 
+                       bam1title=deparse(substitute(bam1)), bam2title=deparse(substitute(bam2)), 
+                       bam3title=deparse(substitute(bam3)), bam4title=deparse(substitute(bam4))) {
   
   # Extract list of transcripts
   gene_tx <- data.frame(transcripts(txdb)) %>% 
     filter(seqnames==chrID) %>% 
     filter((start>=coords[1]) & (end<=coords[2])) %>% 
     dplyr::select(tx_name) %>% 
+    dplyr::filter(str_starts(tx_name, "NM")) %>% # just confirmed transcripts
     list(.$tx_name) %>% 
     .[[2]]
   
   # Create genome axis track
-  genomeAxis <- GenomeAxisTrack(name="MyAxis", col="lightsteelblue4", fontcolor="lightsteelblue4") 
+  genomeAxis <- GenomeAxisTrack(name="MyAxis", col="lightsteelblue4", fontcolor="lightsteelblue4", add35=TRUE) 
   
   # Create BamFile objects (used in sashimi threshold)
   bf_bam1 <- BamFile(bam1, asMates=TRUE)
   bf_bam2 <- BamFile(bam2, asMates=TRUE)
+  if (!is.null(bam3) & !is.null(bam4)){
+    bf_bam3 <- BamFile(bam3, asMates=TRUE)
+    bf_bam4 <- BamFile(bam4, asMates=TRUE)
+  }
   
   # Create plot for coverage and sashimi
   bam1_peakReads <- AlignmentsTrack(bam1, name=bam1title, cex=2, background.title="white",
-                                    sashimiScore=(1/1200)*(countBam(bf_bam1)$records),
+                                    sashimiScore=(1/1300)*(countBam(bf_bam1)$records),
                                     col.axis="lightsteelblue4", col.title="lightsteelblue4")
   bam2_peakReads <- AlignmentsTrack(bam2, name=bam2title, cex=2, background.title="white",
-                                    sashimiScore=(1/1200)*(countBam(bf_bam2)$records),
+                                    sashimiScore=(1/1300)*(countBam(bf_bam2)$records),
                                     col.axis="lightsteelblue4", col.title="lightsteelblue4")
+  if (!is.null(bam3) & !is.null(bam4)) {
+    bam3_peakReads <- AlignmentsTrack(bam3, name=bam3title, cex=2, background.title="white",
+                                    sashimiScore=(1/1300)*(countBam(bf_bam3)$records),
+                                    col.axis="lightsteelblue4", col.title="lightsteelblue4")
+    bam4_peakReads <- AlignmentsTrack(bam4, name=bam4title, cex=2, background.title="white",
+                                    sashimiScore=(1/1300)*(countBam(bf_bam4)$records),
+                                    col.axis="lightsteelblue4", col.title="lightsteelblue4")
+  }
   
   # Create gene models
   gr <- exonsBy(txdb, by = "tx", use.names=TRUE)[gene_tx]
@@ -191,7 +354,19 @@ makefigure <- function(txdb, bam1, bam2, chrID, coords, bam1title=deparse(substi
   
   # Put the figure together
   options(ucscChromosomeNames=FALSE)
-  fig <- plotTracks(c(genomeAxis, bam1_peakReads, bam2_peakReads, gene_models),
+  if (!is.null(bam3) & !is.null(bam4)) {
+    fig <- plotTracks(c(genomeAxis, bam1_peakReads, bam2_peakReads, bam3_peakReads, bam4_peakReads, gene_models),
+             showId=TRUE,
+             transcriptAnnotation="transcript",
+             chromosome=chrID,
+             sizes=c(1,3,3,3,3,2),
+             from=coords[1],
+             to=coords[2],
+             extend.left=3500,
+             fill="lightsteelblue", col.sashimi="lightsteelblue4",
+             type=c('coverage', 'sashimi'))
+  } else {
+    fig <- plotTracks(c(genomeAxis, bam1_peakReads, bam2_peakReads, gene_models),
              showId=TRUE,
              transcriptAnnotation="transcript",
              chromosome=chrID,
@@ -201,6 +376,7 @@ makefigure <- function(txdb, bam1, bam2, chrID, coords, bam1title=deparse(substi
              extend.left=3500,
              fill="lightsteelblue", col.sashimi="lightsteelblue4",
              type=c('coverage', 'sashimi'))
+  }
 
   return(fig)
 }
@@ -209,44 +385,79 @@ makefigure <- function(txdb, bam1, bam2, chrID, coords, bam1title=deparse(substi
 # Visualization: gviz
 
 ## Create Figure
-* May optionally save to .png
+* May optionally save to .tiff
 
+### VISp: Excitatory Subclasses
 ```{r message=FALSE, warning=FALSE, results=FALSE}
-pvalb <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/RefSeq_random100_merged_pvalb.bam")
-l23 <- ("/external/rprshnas01/netdata_kcni/stlab/Intralab_collab_scc_projects/Isoform_project/RefSeq_random100_merged_l23.bam")
+makefigure(refseqTxDb_GRCm39, l23, l45, l5pt, l6it, "NC_000082.7", c(18038612,18056471), 
+                bam1title="L2/3 IT CTX-1", bam2title="L4/5 IT CTX", bam3title="L5 PT CTX", bam4title="L6 IT CTX")
+```
 
-#png(filename="pvalbvsl23.png")
-makefigure(refseqTxDb_GRCm39, pvalb, l23, "NC_000082.7", c(18038612,18056471), bam1title="Pvalb", bam2title="L2/3 IT CTX-1")
+### VISp: Inhibitory Subclasses
+```{r message=FALSE, warning=FALSE, results=FALSE}
+makefigure(refseqTxDb_GRCm39, pvalb, lamp5, sst, vip, "NC_000082.7", c(18038612,18056471), 
+           bam1title="Pvalb", bam2title="Lamp5", bam3title="Sst", bam4title="Vip")
+```
+
+### VISp: Excitatory vs. Inhibitory Classes
+```{r message=FALSE, warning=FALSE, results=FALSE}
+#tiff(filename="pvalbvsl23.tiff", units="in", width=8, height=6, res=500)
+makefigure(refseqTxDb_GRCm39, bam1=exc, bam2=inh, chrID="NC_000082.7", coords=c(18038612,18056471), 
+           bam1title="Excitatory", bam2title="Inhibitory")
 #dev.off()
 ```
 
 # Quantification (still testing)
 
-## See exon boundary coordinates
-```{r eval = FALSE}
-gene_tx <- data.frame(transcripts(refseqTxDb_GRCm39)) %>% 
-  filter(seqnames=="NC_000082.7") %>% 
-  filter((start>=18038612) & (end<=18056471)) %>% 
-  dplyr::select(tx_name) %>% 
-  list(.$tx_name) %>% 
-  .[[2]]
-gr <- exonsBy(refseqTxDb_GRCm39, by = "tx", use.names=TRUE)[gene_tx]
-data.frame(unlist(gr)) %>% 
-  select(start, end, exon_name) 
+## See exon boundary coordinates for every transcript
+* Parameters same as defined above
+
+```{r}
+getexoncoords <- function(txdb, chrID, coords) {
+  gene_tx <- data.frame(transcripts(txdb)) %>% 
+    filter(seqnames==chrID) %>% 
+    filter((start>=coords[1]) & (end<=coords[2])) %>% 
+    dplyr::select(tx_name) %>% 
+    list(.$tx_name) %>% 
+    .[[2]]
+  gr <- exonsBy(txdb, by = "tx", use.names=TRUE)[gene_tx]
+  df <- data.frame(unlist(gr)) %>% 
+    mutate(transcript=str_match(exon_name, "-(.*)-")[,2]) %>% 
+    mutate(exon_num=str_match(exon_name, ".*-(.*)")[,2]) %>% 
+    select(transcript, exon_num, start, end)
+  return(df)
+}
+```
+
+### Example Usage
+```{r}
+exoncoords <- getexoncoords(refseqTxDb_GRCm39, "NC_000082.7", c(18038612,18056471))
+exoncoords
 ```
 
 ## Define transcript-specific ranges
-```{r eval = FALSE}
-NM_172151.5_specific <- GRanges("NC_000082.7", IRanges(18039568, 18041241))
-XM_036159976.1_or_XM_006522224.5 <- GRanges("NC_000082.7", IRanges(18053017, 18056471))
-XM_036159977.1_or_XM_006522224.5 <- GRanges("NC_000082.7", IRanges(18045219, 18045310))
-rng <- NM_172151.5_specific
+Select exon coordinates unique to one transcript (exon in one tx2 should be a subset of exon in tx1)
+```{r}
+selectrange <- function(chrID, exoncoords, tx1, tx2, exon1, exon2) {
+  exon1_rng <- exoncoords %>% filter(transcript==tx1 & exon_num==exon1)
+  exon2_rng <- exoncoords %>% filter(transcript==tx2 & exon_num==exon2)
+  gr_tx1 <- GRanges(chrID, IRanges(exon1_rng$start, exon1_rng$end))
+  gr_tx2 <- GRanges(chrID, IRanges(exon2_rng$start, exon2_rng$end))
+  diff <- GenomicRanges::setdiff(gr_tx1, gr_tx2)
+  
+  return(diff)
+}
+```
+
+### Example Usage
+```{r}
+rng <- selectrange("NC_000082.7", exoncoords, "NM_172151.4", "NM_001379019.1", "11", "11")
 ```
 
 ## summarizeOverlaps: calculate normalized reads
 
 ### As a percentage of reads for whole gene
-```{r eval = FALSE}
+```{r}
 #Pvalb cells
 bf_pvalb <- BamFile(pvalb, asMates=TRUE)
 
@@ -267,7 +478,7 @@ colSums(data.frame(p_l23))
 
 ### Region Ratios (short vs long-minus-short)
 ```{r}
-long <- GRanges("NC_000082.7", IRanges(18039568, 18041241))
+long <- rng
 short <- GRanges("NC_000082.7", IRanges(18038612, 18039568))
 
 long_pvalb <- data.frame(union=assays(summarizeOverlaps(long, bf_pvalb, singleEnd=FALSE, fragments=TRUE))$counts)
@@ -279,9 +490,9 @@ short_l23 <- data.frame(union=assays(summarizeOverlaps(short, bf_l23, singleEnd=
 ratio_pvalb <- (rowSums(long_pvalb))/(rowSums(short_pvalb))
 ratio_l23 <- (rowSums(long_l23))/(rowSums(short_l23))
 
-colSums(data.frame(ratio_pvalb))
-colSums(data.frame(ratio_l23))
+readratios <- data.frame(Pvalb=ratio_pvalb, "L2/3 IT"=ratio_l23, row.names="Read Ratio")
 ```
+
 ### As a percentage of reads in long final exon region
 ```{r}
 full <- GRanges("NC_000082.7", IRanges(18038617, 18041241))
@@ -296,9 +507,9 @@ full_minus_short_l23 <- data.frame(union=assays(summarizeOverlaps(full_minus_sho
 p_pvalb <- 100*(rowSums(full_minus_short_pvalb))/(rowSums(full_pvalb))
 p_l23 <- 100*(rowSums(full_minus_short_l23))/(rowSums(full_l23))
 
-colSums(data.frame(p_pvalb))
-colSums(data.frame(p_l23))
+readpercentages <- data.frame(Pvalb=p_pvalb, "L2/3 IT"=p_l23, row.names="Read %")
 ```
+
 ## summarizeJunctions
 18041241-18042082 (long final exon) 
 * Pvalb = 50
@@ -318,25 +529,20 @@ junction_df_pvalb <- data.frame(c(as.data.frame(junctions_pvalb@ranges), as.data
 junctions_l23 <- summarizeJunctions(galign_l23)
 junction_df_l23 <- data.frame(c(as.data.frame(junctions_l23@ranges), as.data.frame(junctions_l23$score)))
 
-junction_df_l23 %>% filter(end==18042081)
-junction_df_pvalb %>% filter(end==18042081)
+junction_df_l23 <- junction_df_l23 %>% filter(end==18042081 & start!=18033262)
+junction_df_pvalb <-junction_df_pvalb %>% filter(end==18042081)
+
+junc_ratio_pvalb <- junction_df_pvalb$junctions_pvalb.score[2]/junction_df_pvalb$junctions_pvalb.score[1]
+junc_ratio_l23 <- junction_df_l23$junctions_l23.score[2]/junction_df_l23$junctions_l23.score[1]
+
+junc_percent_pvalb <- 100*junction_df_pvalb$junctions_pvalb.score[2]/(junction_df_pvalb$junctions_pvalb.score[1]+junction_df_pvalb$junctions_pvalb.score[2])
+junc_percent_l23 <- 100*junction_df_l23$junctions_l23.score[2]/(junction_df_l23$junctions_l23.score[1]+junction_df_l23$junctions_l23.score[2])
+
+junctionratios<- data.frame(Pvalb=junc_ratio_pvalb, "L2/3 IT"=junc_ratio_l23, row.names="Junction Ratio")
+junctionpercentages<- data.frame(Pvalb=junc_percent_pvalb, "L2/3 IT"=junc_percent_l23, row.names="Junction %")
 ```
 
-## featureCounts
+## Comparing Metrics
 ```{r}
-fc_pvalb <- featureCounts(files=pvalb, 
-              annot.ext=refseq_ref_GRCm39,
-              isGTFAnnotationFile = TRUE,
-              GTF.attrType = "ID",
-              isPairedEnd = TRUE,
-              juncCounts = TRUE,
-              genome = "/external/rprshnas01/netdata_kcni/stlab/Genomic_references/Refseq/Mouse/Refseq_GRCm39/Raw/GCF_000001635.27_GRCm39_genomic.fna")
-
-fc_l23 <- featureCounts(files=l23, 
-              annot.ext=refseq_ref_GRCm39,
-              isGTFAnnotationFile = TRUE,
-              GTF.attrType = "ID",
-              isPairedEnd = TRUE,
-              juncCounts = TRUE,
-              genome = "/external/rprshnas01/netdata_kcni/stlab/Genomic_references/Refseq/Mouse/Refseq_GRCm39/Raw/GCF_000001635.27_GRCm39_genomic.fna")
+rbind(readratios,junctionratios,readpercentages,junctionpercentages)
 ```
